@@ -1,27 +1,25 @@
-package solr_test
+package solr
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"reflect"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/stevenferrer/solr-go"
 )
 
 // errorRequestSender is a request sender that errors
 type errorRequestSender struct{}
 
-var _ solr.RequestSender = (*errorRequestSender)(nil)
+var _ RequestSender = (*errorRequestSender)(nil)
 
 var errSendRequest = errors.New("an error from request sender")
 
@@ -37,8 +35,8 @@ func TestJSONClientMock(t *testing.T) {
 	baseURL := "https://solr.example.com"
 	collection := "products"
 
-	client := solr.NewJSONClient(baseURL)
-	clientThatErrors := solr.NewJSONClient(baseURL).
+	client := NewJSONClient(baseURL)
+	clientThatErrors := NewJSONClient(baseURL).
 		WithRequestSender(&errorRequestSender{})
 
 	t.Run("collections", func(t *testing.T) {
@@ -50,14 +48,14 @@ func TestJSONClientMock(t *testing.T) {
 					query := "action=CREATE&name=mycollection&numShards=1&replicationFactor=1"
 					gotQuery := r.URL.Query().Encode()
 					if gotQuery != query {
-						return nil, errors.Errorf("expecting url query to be %q but got %q", query, gotQuery)
+						return nil, fmt.Errorf("expecting url query to be %q but got %q", query, gotQuery)
 					}
 
-					return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+					return httpmock.NewJsonResponse(http.StatusOK, M{})
 				},
 			)
 
-			params := solr.NewCollectionParams().
+			params := NewCollectionParams().
 				Name("mycollection").NumShards(1).
 				ReplicationFactor(1)
 			err := client.CreateCollection(ctx, params)
@@ -74,14 +72,14 @@ func TestJSONClientMock(t *testing.T) {
 					query := "action=DELETE&name=mycollection"
 					gotQuery := r.URL.Query().Encode()
 					if gotQuery != query {
-						return nil, errors.Errorf("expecting url query to be %q but got %q", query, gotQuery)
+						return nil, fmt.Errorf("expecting url query to be %q but got %q", query, gotQuery)
 					}
 
-					return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+					return httpmock.NewJsonResponse(http.StatusOK, M{})
 				},
 			)
 
-			params := solr.NewCollectionParams().
+			params := NewCollectionParams().
 				Name("mycollection")
 			err := client.DeleteCollection(ctx, params)
 			assert.NoError(t, err)
@@ -100,14 +98,14 @@ func TestJSONClientMock(t *testing.T) {
 					query := "action=CREATE&name=mycore"
 					gotQuery := r.URL.Query().Encode()
 					if gotQuery != query {
-						return nil, errors.Errorf("expecting url query to be %q but got %q", query, gotQuery)
+						return nil, fmt.Errorf("expecting url query to be %q but got %q", query, gotQuery)
 					}
 
-					return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+					return httpmock.NewJsonResponse(http.StatusOK, M{})
 				},
 			)
 
-			params := solr.NewCreateCoreParams("mycore")
+			params := NewCreateCoreParams("mycore")
 			err := client.CreateCore(ctx, params)
 			assert.NoError(t, err)
 
@@ -123,14 +121,14 @@ func TestJSONClientMock(t *testing.T) {
 					query := "action=STATUS&core=mycore"
 					gotQuery := r.URL.Query().Encode()
 					if gotQuery != query {
-						return nil, errors.Errorf("expecting url query to be %q but got %q", query, gotQuery)
+						return nil, fmt.Errorf("expecting url query to be %q but got %q", query, gotQuery)
 					}
 
-					return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+					return httpmock.NewJsonResponse(http.StatusOK, M{})
 				},
 			)
 
-			params := solr.NewCoreParams("mycore")
+			params := NewCoreParams("mycore")
 			_, err := client.CoreStatus(ctx, params)
 			assert.NoError(t, err)
 
@@ -147,14 +145,14 @@ func TestJSONClientMock(t *testing.T) {
 					query := "action=UNLOAD&core=mycore"
 					gotQuery := r.URL.Query().Encode()
 					if gotQuery != query {
-						return nil, errors.Errorf("expecting url query to be %q but got %q", query, gotQuery)
+						return nil, fmt.Errorf("expecting url query to be %q but got %q", query, gotQuery)
 					}
 
-					return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+					return httpmock.NewJsonResponse(http.StatusOK, M{})
 				},
 			)
 
-			params := solr.NewCoreParams("mycore")
+			params := NewCoreParams("mycore")
 			err := client.UnloadCore(ctx, params)
 			assert.NoError(t, err)
 
@@ -166,10 +164,10 @@ func TestJSONClientMock(t *testing.T) {
 		httpmock.RegisterResponder(
 			http.MethodPost,
 			baseURL+"/solr/"+collection+"/query",
-			newResponder(mockBody, solr.M{}),
+			newResponder(mockBody, M{}),
 		)
 
-		query := solr.NewQuery(solr.NewDisMaxQueryParser().
+		query := NewQuery(NewDisMaxQueryParser().
 			Query("'apple pie'").BuildParser())
 		_, err := client.Query(ctx, collection, query)
 		assert.NoError(t, err)
@@ -183,7 +181,7 @@ func TestJSONClientMock(t *testing.T) {
 		httpmock.RegisterResponder(
 			http.MethodPost,
 			baseURL+"/solr/"+collection+"/update",
-			newResponder(mockBody, solr.M{}),
+			newResponder(mockBody, M{}),
 		)
 
 		httpmock.RegisterResponder(
@@ -195,13 +193,13 @@ func TestJSONClientMock(t *testing.T) {
 					return nil, errors.New("expect `commit` param to be true")
 				}
 
-				return httpmock.NewJsonResponse(http.StatusOK, solr.M{})
+				return httpmock.NewJsonResponse(http.StatusOK, M{})
 			},
 		)
 
 		buf := &bytes.Buffer{}
 		err := json.NewEncoder(buf).
-			Encode([]solr.M{
+			Encode([]M{
 				{
 					"id":   1,
 					"name": "product 1",
@@ -217,13 +215,13 @@ func TestJSONClientMock(t *testing.T) {
 			})
 		assert.NoError(t, err)
 
-		_, err = client.Update(ctx, collection, solr.JSON, buf)
+		_, err = client.Update(ctx, collection, JSON, buf)
 		assert.NoError(t, err)
 
 		err = client.Commit(ctx, collection)
 		assert.NoError(t, err)
 
-		_, err = clientThatErrors.Update(ctx, collection, solr.JSON, buf)
+		_, err = clientThatErrors.Update(ctx, collection, JSON, buf)
 		assert.ErrorIs(t, err, errSendRequest)
 
 		err = clientThatErrors.Commit(ctx, collection)
@@ -236,10 +234,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name: "foo",
 					Type: "string",
@@ -261,10 +259,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name: "foo",
 				},
@@ -281,10 +279,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name: "foo",
 					Type: "plong",
@@ -303,10 +301,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name:   "*_foo",
 					Type:   "string",
@@ -327,10 +325,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name: "*_foo",
 				},
@@ -348,10 +346,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fields := []solr.Field{
+			fields := []Field{
 				{
 					Name: "*_foo",
 					Type: "text_general",
@@ -371,21 +369,21 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fieldTypes := []solr.FieldType{
+			fieldTypes := []FieldType{
 				{
 					Name:  "myNewTextField",
 					Class: "solr.TextField",
-					IndexAnalyzer: &solr.Analyzer{
-						Tokenizer: &solr.Tokenizer{
+					IndexAnalyzer: &Analyzer{
+						Tokenizer: &Tokenizer{
 							Class:     "solr.PathHierarchyTokenizerFactory",
 							Delimeter: "/",
 						},
 					},
-					QueryAnalyzer: &solr.Analyzer{
-						Tokenizer: &solr.Tokenizer{
+					QueryAnalyzer: &Analyzer{
+						Tokenizer: &Tokenizer{
 							Class: "solr.KeywordTokenizerFactory",
 						},
 					},
@@ -400,10 +398,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fieldTypes := []solr.FieldType{
+			fieldTypes := []FieldType{
 				{
 					Name: "myNewTextField",
 				},
@@ -417,16 +415,16 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			fieldTypes := []solr.FieldType{
+			fieldTypes := []FieldType{
 				{
 					Name:                 "myNewTextField",
 					Class:                "solr.TextField",
 					PositionIncrementGap: "100",
-					Analyzer: &solr.Analyzer{
-						Tokenizer: &solr.Tokenizer{
+					Analyzer: &Analyzer{
+						Tokenizer: &Tokenizer{
 							Class: "solr.StandardTokenizerFactory",
 						},
 					},
@@ -441,10 +439,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			copyFields := []solr.CopyField{
+			copyFields := []CopyField{
 				{
 					Source: "shelf",
 					Dest:   "location",
@@ -463,10 +461,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			copyFields := []solr.CopyField{
+			copyFields := []CopyField{
 				{
 					Source: "shelf",
 					Dest:   "location",
@@ -481,14 +479,14 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/schema",
-				newResponderWithStatus(http.StatusBadRequest, mockBody, solr.BaseResponse{
-					Error: &solr.ResponseError{
+				newResponderWithStatus(http.StatusBadRequest, mockBody, BaseResponse{
+					Error: &ResponseError{
 						Msg: "this is an error",
 					},
 				}),
 			)
 
-			fields := []solr.Field{{Name: "foo"}}
+			fields := []Field{{Name: "foo"}}
 			err := client.AddFields(ctx, collection, fields...)
 			assert.Error(t, err)
 		})
@@ -500,10 +498,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/config",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			err := client.SetProperties(ctx, collection, solr.CommonProperty{
+			err := client.SetProperties(ctx, collection, CommonProperty{
 				Name:  "updater.autoCommit.maxTime",
 				Value: 15000,
 			})
@@ -515,10 +513,10 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/config",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			err := client.UnsetProperty(ctx, collection, solr.CommonProperty{
+			err := client.UnsetProperty(ctx, collection, CommonProperty{
 				Name: "updater.autoCommit.maxTime",
 			})
 			assert.NoError(t, err)
@@ -529,13 +527,13 @@ func TestJSONClientMock(t *testing.T) {
 			httpmock.RegisterResponder(
 				http.MethodPost,
 				baseURL+"/solr/"+collection+"/config",
-				newResponder(mockBody, solr.M{}),
+				newResponder(mockBody, M{}),
 			)
 
-			suggestComponent := solr.NewComponent(solr.SearchComponent).
+			suggestComponent := NewComponent(SearchComponent).
 				Name("suggest").Class("solr.SuggestComponent").
-				Config(solr.M{
-					"suggester": solr.M{
+				Config(M{
+					"suggester": M{
 						"name":                     "default",
 						"lookupImpl":               "AnalyzingInfixLookupFactory",
 						"dictionaryImpl":           "DocumentDictionaryFactory",
@@ -544,11 +542,11 @@ func TestJSONClientMock(t *testing.T) {
 					},
 				})
 
-			suggestHandler := solr.NewComponent(solr.RequestHandler).
+			suggestHandler := NewComponent(RequestHandler).
 				Name("/suggest").Class("solr.SearchHandler").
-				Config(solr.M{
+				Config(M{
 					"startup": "lazy",
-					"defaults": solr.M{
+					"defaults": M{
 						"suggest":            true,
 						"suggest.count":      10,
 						"suggest.dictionary": "default",
@@ -575,7 +573,7 @@ func TestJSONClientMock(t *testing.T) {
 	})
 
 	t.Run("suggest", func(t *testing.T) {
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, solr.SuggestResponse{})
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, SuggestResponse{})
 		require.NoError(t, err)
 		httpmock.RegisterResponder(
 			http.MethodGet,
@@ -583,7 +581,7 @@ func TestJSONClientMock(t *testing.T) {
 			responder,
 		)
 
-		suggestParams := solr.NewSuggesterParams("suggest").
+		suggestParams := NewSuggesterParams("suggest").
 			Build().Dictionaries("mySuggester").Query("elec")
 		_, err = client.Suggest(ctx, collection, suggestParams)
 		assert.NoError(t, err)
@@ -599,7 +597,7 @@ func TestJSONClientMock(t *testing.T) {
 			return response, nil
 		})
 
-		params := solr.NewCoreParams("mycore")
+		params := NewCoreParams("mycore")
 		_, err := client.CoreStatus(ctx, params)
 		assert.Error(t, err)
 	})
@@ -617,19 +615,19 @@ func newResponderWithStatus(status int, body string, mockResp interface{}) httpm
 	}
 
 	return func(r *http.Request) (*http.Response, error) {
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			return nil, errors.Wrap(err, "read request body")
+			return nil, wrapErr(err, "read request body")
 		}
 
 		var reqBody interface{}
 		err = json.Unmarshal(b, &reqBody)
 		if err != nil {
-			return nil, errors.Wrap(err, "unmarshal request body")
+			return nil, wrapErr(err, "unmarshal request body")
 		}
 
 		if !reflect.DeepEqual(reqBody, mockBody) {
-			return nil, errors.Errorf("expected request body: %v", string(b))
+			return nil, fmt.Errorf("expected request body: %v", string(b))
 		}
 
 		return httpmock.NewJsonResponse(status, mockResp)
