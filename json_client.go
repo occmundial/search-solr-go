@@ -140,7 +140,7 @@ func (c *JSONClient) Query(ctx context.Context, collection string, query *Query)
 		return nil, wrapErr(err, "encode request body")
 	}
 
-	urlStr := fmt.Sprintf("%s/solr/%s/select?", c.baseURL, collection)
+	urlStr := fmt.Sprintf("%s/solr/%s/select", c.baseURL, collection)
 	httpResp, err := c.reqSender.SendRequest(ctx, http.MethodPost, urlStr, JSON.String(), buf)
 	if err != nil {
 		return nil, wrapErr(err, "send request")
