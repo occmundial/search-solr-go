@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stevenferrer/solr-go"
+	"github.com/occmundial/search-solr-go"
 )
 
 func TestBuildComponent(t *testing.T) {

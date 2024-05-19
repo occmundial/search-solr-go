@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/stevenferrer/solr-go"
+	"github.com/occmundial/search-solr-go"
 )
 
 func TestJSONClient(t *testing.T) {
