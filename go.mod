@@ -3,8 +3,8 @@ module github.com/occmundial/search-solr-go
 go 1.19
 
 require (
-	github.com/jarcoal/httpmock v1.2.0
-	github.com/stretchr/testify v1.7.1
+	github.com/jarcoal/httpmock v1.3.1
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
