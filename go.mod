@@ -1,4 +1,4 @@
-module github.com/stevenferrer/solr-go
+module github.com/occmundial/search-solr-go
 
 go 1.19
 
