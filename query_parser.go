@@ -12,6 +12,133 @@ type QueryParser interface {
 	BuildParser() string
 }
 
+type OCCQueryParser struct {
+	// OCC q parser params
+	// reference: https://lucene.apache.org/solr/guide/8_7/the-dismax-q-parser.html
+	q   string // query
+	alt string // alt query
+	qf  string // query fields
+	mm  string // minimum should match
+	pf  string // phrase field
+	ps  string // phrase slop
+	qs  string // query slop
+	tie string // tie breaker parameter
+	bq  string // boost query
+	bf  string // boost function
+}
+
+var _ QueryParser = (*OCCQueryParser)(nil)
+
+func NewOCCQueryParser() *OCCQueryParser {
+	return &OCCQueryParser{}
+}
+
+// BuildParser builds the query parser
+func (qp *OCCQueryParser) BuildParser() string {
+	kv := []string{}
+	if qp.alt != "" {
+		kv = append(kv, fmt.Sprintf("q.alt=%s", qp.alt))
+	}
+
+	if qp.qf != "" {
+		kv = append(kv, fmt.Sprintf("qf=%s", qp.qf))
+	}
+
+	if qp.mm != "" {
+		kv = append(kv, fmt.Sprintf("mm=%s", qp.mm))
+	}
+
+	if qp.pf != "" {
+		kv = append(kv, fmt.Sprintf("pf=%s", qp.pf))
+	}
+
+	if qp.ps != "" {
+		kv = append(kv, fmt.Sprintf("ps=%s", qp.ps))
+	}
+
+	if qp.qs != "" {
+		kv = append(kv, fmt.Sprintf("qs=%s", qp.qs))
+	}
+
+	if qp.tie != "" {
+		kv = append(kv, fmt.Sprintf("tie=%s", qp.tie))
+	}
+
+	if qp.bq != "" {
+		kv = append(kv, fmt.Sprintf("bq=%s", qp.bq))
+	}
+
+	if qp.bf != "" {
+		kv = append(kv, fmt.Sprintf("bf=%s", qp.bf))
+	}
+
+	if qp.q != "" {
+		kv = append(kv, fmt.Sprintf("q=%s", qp.q))
+	}
+
+	return fmt.Sprintf("{%s}", strings.Join(kv, " "))
+}
+
+// Query sets the query
+func (qp *OCCQueryParser) Query(query string) *OCCQueryParser {
+	qp.q = query
+	return qp
+}
+
+// Alt sets the q.alt param
+func (qp *OCCQueryParser) Alt(alt string) *OCCQueryParser {
+	qp.alt = alt
+	return qp
+}
+
+// Qf sets the qf param
+func (qp *OCCQueryParser) Qf(qf string) *OCCQueryParser {
+	qp.qf = qf
+	return qp
+}
+
+// Mm sets the minimum should match param
+func (qp *OCCQueryParser) Mm(mm string) *OCCQueryParser {
+	qp.mm = mm
+	return qp
+}
+
+// Pf sets the phrase field param
+func (qp *OCCQueryParser) Pf(pf string) *OCCQueryParser {
+	qp.pf = pf
+	return qp
+}
+
+// Ps sets the phrase slop param
+func (qp *OCCQueryParser) Ps(ps string) *OCCQueryParser {
+	qp.ps = ps
+	return qp
+}
+
+// Qs sets the query slop param
+func (qp *OCCQueryParser) Qs(qs string) *OCCQueryParser {
+	qp.qs = qs
+	return qp
+}
+
+// Tie sets the tie breaker param param
+func (qp *OCCQueryParser) Tie(tie string) *OCCQueryParser {
+	qp.tie = tie
+	return qp
+}
+
+// Bq sets the boost query param
+func (qp *OCCQueryParser) Bq(bq string) *OCCQueryParser {
+	qp.bq = bq
+	return qp
+}
+
+// Bf sets the boost function param
+func (qp *OCCQueryParser) Bf(bf string) *OCCQueryParser {
+	qp.bf = bf
+	return qp
+}
+
 // StandardQueryParser is a standard query parser (lucene)
 type StandardQueryParser struct {
 	// standard q parser params
@@ -52,7 +179,7 @@ func (qp *StandardQueryParser) BuildParser() string {
 	}
 
 	if qp.q != "" {
-		kv = append(kv, fmt.Sprintf("v=%s", qp.q))
+		kv = append(kv, fmt.Sprintf("q=%s", qp.q))
 	}
 
 	return fmt.Sprintf("{!%s}", strings.Join(kv, " "))
@@ -151,7 +278,7 @@ func (qp *DisMaxQueryParser) BuildParser() string {
 	}
 
 	if qp.q != "" {
-		kv = append(kv, fmt.Sprintf("v=%s", qp.q))
+		kv = append(kv, fmt.Sprintf("q=%s", qp.q))
 	}
 
 	return fmt.Sprintf("{!%s}", strings.Join(kv, " "))
